@@ -1,0 +1,17 @@
+order: 1
+title: Jack Night
+tracks:
+  - name: Full Audio
+    artist: Jack Night
+    sources:
+      - file: jn/jacknight.flac
+  - name: hewillyeah
+    sources:
+      - file: jn/hewillyeah.flac
+  - name: FizzyApple12
+    sources:
+      - file: jn/fizzyapple12.flac
+  - name: "Secret Recording \U0001F92B"
+    artist: Kurt
+    sources:
+      - file: jn/kurt.m4a

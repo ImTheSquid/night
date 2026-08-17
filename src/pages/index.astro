@@ -1,17 +1,13 @@
 ---
+import Base from "../layouts/Base.astro";
+import SetList from "../components/SetList.astro";
+import { jackNights } from "../lib/sets";
 
+const sets = await jackNights();
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<Base title="Jack Night Repository">
+  <h1>JACK NIGHT REPOSITORY</h1>
+  <span>Looking for Second Fridays? Click <a href="/second-fridays">here</a>.</span>
+  <SetList sets={sets} />
+</Base>

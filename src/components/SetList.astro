@@ -1,0 +1,17 @@
+---
+import Set from "./Set.astro";
+import { warnUnlisted, type Night } from "../lib/sets";
+
+interface Props {
+  sets: Night[];
+}
+
+const { sets } = Astro.props;
+
+// Build-time only: flags audio on the server that no page lists.
+await warnUnlisted();
+---
+
+{sets.map((set) => <Set set={set} />)}
+
+<script src="../scripts/player.ts"></script>

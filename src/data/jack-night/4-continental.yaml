@@ -1,0 +1,59 @@
+order: 4
+title: "Jack Night 4: Continental"
+note: Cut short due to a noise complaint, most sets mono audio due to recording issue
+numbered: true
+tracks:
+  - name: Xendergo
+    sources:
+      - file: jn4/Xendergo.flac
+  - name: weakdays
+    sources:
+      - file: jn4/weakdays.flac
+  - name: ImTheSquid
+    sources:
+      - file: jn4/ImTheSquid_MONO.flac
+        label: Original (mono audio)
+      - file: jn4/ImTheSquid.flac
+        label: Rerecorded (stereo audio, published)
+    setlist:
+      - "2manycolours - Spring Breakers (2manyco edit)"
+      - "DJ BROOKLYN DJ - QUIET THE FUCK DOWN BROOKLYN"
+      - "underscores - Music"
+      - "Sudan Archives - THE NATURE OF POWER"
+      - "piccolo - Sexy And I Know It (piccolo edit)"
+      - "GRRL - Indigo (Sierra)"
+      - "underwtr - GF #CLUBTOOL"
+      - "porf0d-2 - RITUAL PHARMACY"
+      - "roro - BOTABOTABOTA"
+      - "comolasopa - XFAVOR SOY UNA ESTRELLA"
+      - "dirtykkk - 信義 Xin Yi"
+      - "The Second Coming - Holy Yellow Hyper Water"
+      - "ezmehfw - fuego fuego"
+      - "Latinrock - andaba fumando y me paro la policia :"
+      - "GRRL - Fold"
+      - "ezmehfw - NUEVAYOLv3"
+      - "dudda - mega tecnologica 2026"
+      - "Latinrock - rompiendo la discoteca de mi pueblo c"
+      - "GRRL - Tumble"
+      - "ezmehfw - 4kdariachoso"
+      - "ta1lsd0ll - ta1lsd028"
+      - "djbas - yankin edit"
+      - "OJC - TELL ME THAT YOU LOVE ME"
+      - "51angelz - Dying for you (170bpm)"
+      - "Zekk - Kisses"
+      - "chelmico - Easy Breezy"
+  - name: QRV
+    sources:
+      - file: jn4/QRV.flac
+  - name: wheely
+    sources:
+      - file: jn4/wheely.flac
+  - name: FizzyApple12
+    sources:
+      - file: jn4/FizzyApple12.flac
+  - name: habiboi
+    sources:
+      - file: jn4/habiboi.flac
+  - name: aephyn
+    sources:
+      - file: jn4/aephyn.flac

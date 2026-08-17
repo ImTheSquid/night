@@ -1,0 +1,126 @@
+---
+import { audioFor, formatBytes, formatDuration } from "../lib/audio";
+import type { Night } from "../lib/sets";
+
+interface Props {
+    set: Night;
+}
+
+const { set } = Astro.props;
+const { title, note, numbered, tracks } = set;
+const List = numbered ? "ol" : "ul";
+
+const MIME: Record<string, string> = {
+    flac: "audio/flac",
+    aac: "audio/mp4",
+    mp3: "audio/mpeg",
+    vorbis: "audio/ogg",
+    opus: "audio/ogg",
+};
+const mimeFor = (codec: string) => MIME[codec] ?? "audio/mpeg";
+
+/** Media Session title: distinguish parts and variants, otherwise just the name. */
+function mediaTitle(
+    name: string,
+    label: string | undefined,
+    index: number,
+    total: number,
+) {
+    if (label) return `${name} — ${label}`;
+    return total > 1 ? `${name} (Part ${index + 1})` : name;
+}
+---
+
+<h2>{title}</h2>
+{
+    note && (
+        <h3>
+            <i>{note}</i>
+        </h3>
+    )
+}
+<List>
+    {
+        tracks.map((track) => {
+            const labelled = track.sources.some((s) => s.label);
+            // preload="none" so a page of players costs nothing until one is pressed.
+            // Sources run smallest-first, ending at the original, so playback never
+            // depends on a transcode having happened.
+            const players = track.sources.map((source, i) => {
+                const info = audioFor(source.file);
+                return (
+                    <>
+                        <audio
+                            controls
+                            preload="metadata"
+                            data-key={source.file}
+                            data-title={mediaTitle(
+                                track.name,
+                                source.label,
+                                i,
+                                track.sources.length,
+                            )}
+                            data-artist={track.artist ?? track.name}
+                            data-album={title}
+                            data-duration={info.duration}
+                        >
+                            {info.opus && (
+                                <source
+                                    src={info.opus.url}
+                                    type="audio/ogg; codecs=opus"
+                                />
+                            )}
+                            {info.aac && (
+                                <source
+                                    src={info.aac.url}
+                                    type="audio/mp4; codecs=mp4a.40.2"
+                                />
+                            )}
+                            <source src={info.src} type={mimeFor(info.codec)} />
+                        </audio>
+                        {/* Duration comes from the manifest, not the player: with preload="none"
+                the control reads 0:00 until pressed, and preloading every player
+                instead trips a browser cap on concurrent media loads. */}
+                        <span class="meta">
+                            {formatDuration(info.duration)}
+                            {info.channels === 1 && " · mono"}
+                            {" · "}
+                            <a href={info.src} download>
+                                {source.file.split(".").pop()}{" "}
+                                {formatBytes(info.bytes)}
+                            </a>
+                        </span>
+                    </>
+                );
+            });
+
+            return (
+                <li>
+                    {track.name}
+                    {labelled ? (
+                        <ul>
+                            {track.sources.map((source, i) => (
+                                <li>
+                                    <p>{source.label}</p>
+                                    {players[i]}
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        players
+                    )}
+                    {track.setlist && (
+                        <details>
+                            <summary>Setlist</summary>
+                            <ol>
+                                {track.setlist.map((entry) => (
+                                    <li>{entry}</li>
+                                ))}
+                            </ol>
+                        </details>
+                    )}
+                </li>
+            );
+        })
+    }
+</List>

@@ -1,0 +1,26 @@
+order: 3
+title: "Jack Night 3: Fruity Bullshit"
+tracks:
+  - name: FizzyApple12
+    sources:
+      - file: jn3/fizzyapple12.flac
+  - name: Habiboi
+    sources:
+      - file: jn3/habiboi.flac
+  - name: ImTheSquid
+    sources:
+      - file: jn3/imthesquid.flac
+  - name: Jeenz
+    sources:
+      - file: jn3/jeenz.flac
+  - name: Weakdays
+    sources:
+      - file: jn3/weakdays.flac
+  - name: Wheely
+    sources:
+      - file: jn3/wheely-1.flac
+      - file: jn3/wheely-2.flac
+  - name: Xendergo
+    sources:
+      - file: jn3/xendergo-1.flac
+      - file: jn3/xendergo-2.flac

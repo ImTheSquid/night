@@ -1,0 +1,55 @@
+---
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = "Recordings from the Jack Night DJ nights." } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <slot />
+    <style is:global>
+      body {
+        font-family: monospace;
+        padding: 0 12px;
+      }
+      audio {
+        width: 100%;
+        display: block;
+        margin: 4px 0;
+      }
+      li {
+        margin-bottom: 12px;
+      }
+      /* Duration, size and the FLAC link. Deliberately quiet -- the track
+         names stay the thing you read. */
+      .meta {
+        opacity: 0.55;
+        font-size: 0.85em;
+      }
+      .meta a {
+        color: inherit;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          color: white;
+          background-color: black;
+        }
+      }
+    </style>
+  </body>
+</html>

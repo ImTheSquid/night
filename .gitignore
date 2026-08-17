@@ -2,6 +2,8 @@
 dist/
 # generated types
 .astro/
+# probed from the server at build time, never authored
+.audio-manifest.json
 
 # dependencies
 node_modules/

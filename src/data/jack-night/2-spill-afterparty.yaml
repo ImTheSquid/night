@@ -1,0 +1,21 @@
+order: 2
+title: "Jack Night 2: spill ≋ Afterparty"
+tracks:
+  - name: Hazel
+    sources:
+      - file: jn2/spill-afterparty-hazel.flac
+  - name: Henry
+    sources:
+      - file: jn2/spill-afterparty-henry.flac
+  - name: Julian
+    sources:
+      - file: jn2/spill-afterparty-julian.flac
+  - name: Kurt
+    sources:
+      - file: jn2/spill-afterparty-kurt.flac
+  - name: Matthew
+    sources:
+      - file: jn2/spill-afterparty-matthew.flac
+  - name: Trey
+    sources:
+      - file: jn2/spill-afterparty-trey.flac
