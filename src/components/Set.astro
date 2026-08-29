@@ -13,7 +13,9 @@ const { title, note, numbered, tracks } = set;
 const List = numbered ? "ol" : "ul";
 
 // Prefixed by the night, so the same DJ on two nights gets two links.
-const trackIds = uniqueSlugs(tracks.map((t) => t.name)).map((s) => `${id}-${s}`);
+const trackIds = uniqueSlugs(tracks.map((t) => t.name)).map(
+    (s) => `${id}-${s}`,
+);
 
 const MIME: Record<string, string> = {
     flac: "audio/flac",

@@ -58,7 +58,10 @@ export async function secondFridays(): Promise<Night[]> {
   const entries = await getCollection("secondFridays");
   return entries
     .sort((a, b) => a.data.date.getTime() - b.data.date.getTime())
-    .map((e) => ({ ...e.data, title: e.data.title ?? formatDate(e.data.date) }));
+    .map((e) => ({
+      ...e.data,
+      title: e.data.title ?? `Second Fridays ${formatDate(e.data.date)}`,
+    }));
 }
 
 let checked = false;
