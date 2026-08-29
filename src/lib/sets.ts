@@ -24,6 +24,29 @@ export function formatDate(date: Date): string {
   });
 }
 
+/** "Jack Night 4: Continental" -> "jack-night-4-continental". Accents are
+ *  folded rather than dropped, so "Sebastián" stays "sebastian". */
+export function slug(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/** Slugs for a list of headings, suffixed only where two would collide.
+ *  `fallback` names anything that slugifies to nothing, e.g. a title of emoji. */
+export function uniqueSlugs(titles: string[], fallback = "item"): string[] {
+  const seen = new Map<string, number>();
+  return titles.map((title, i) => {
+    const base = slug(title) || `${fallback}-${i + 1}`;
+    const n = seen.get(base) ?? 0;
+    seen.set(base, n + 1);
+    return n ? `${base}-${n + 1}` : base;
+  });
+}
+
 /** The numbered Jack Nights, oldest first. */
 export async function jackNights(): Promise<Night[]> {
   const entries = await getCollection("jackNight");

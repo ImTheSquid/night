@@ -2,7 +2,7 @@ order: 1
 title: Jack Night
 tracks:
   - name: Full Audio
-    artist: Jack Night
+    artist: Everyone
     sources:
       - file: jn/jacknight.flac
   - name: hewillyeah

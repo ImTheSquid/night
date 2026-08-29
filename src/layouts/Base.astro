@@ -35,6 +35,27 @@ const { title, description = "Recordings from the Jack Night DJ nights." } = Ast
       li {
         margin-bottom: 12px;
       }
+      /* A heading you land on shouldn't sit flush against the viewport edge. */
+      :target {
+        scroll-margin-top: 12px;
+      }
+      /* Headings read as text; the # only shows when you go looking for it. */
+      .anchor {
+        color: inherit;
+        text-decoration: none;
+      }
+      .anchor::after {
+        content: " #";
+        opacity: 0;
+      }
+      .anchor:hover::after,
+      .anchor:focus-visible::after {
+        opacity: 0.4;
+      }
+      /* One row in a page of near-identical rows: mark the one that was linked. */
+      :target > .anchor {
+        text-decoration: underline;
+      }
       /* Duration, size and the FLAC link. Deliberately quiet -- the track
          names stay the thing you read. */
       .meta {

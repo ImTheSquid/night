@@ -1,14 +1,19 @@
 ---
 import { audioFor, formatBytes, formatDuration } from "../lib/audio";
-import type { Night } from "../lib/sets";
+import { uniqueSlugs, type Night } from "../lib/sets";
 
 interface Props {
     set: Night;
+    /** Anchor for the heading, so a night can be linked to directly. */
+    id: string;
 }
 
-const { set } = Astro.props;
+const { set, id } = Astro.props;
 const { title, note, numbered, tracks } = set;
 const List = numbered ? "ol" : "ul";
+
+// Prefixed by the night, so the same DJ on two nights gets two links.
+const trackIds = uniqueSlugs(tracks.map((t) => t.name)).map((s) => `${id}-${s}`);
 
 const MIME: Record<string, string> = {
     flac: "audio/flac",
@@ -19,29 +24,32 @@ const MIME: Record<string, string> = {
 };
 const mimeFor = (codec: string) => MIME[codec] ?? "audio/mpeg";
 
-/** Media Session title: distinguish parts and variants, otherwise just the name. */
+/** Media Session title: "ARTIST @ EVENT", with parts and variants distinguished. */
 function mediaTitle(
-    name: string,
+    artist: string,
     label: string | undefined,
     index: number,
     total: number,
 ) {
-    if (label) return `${name} — ${label}`;
-    return total > 1 ? `${name} (Part ${index + 1})` : name;
+    const base = `${artist} @ ${title}`;
+    if (label) return `${base} — ${label}`;
+    return total > 1 ? `${base} (Part ${index + 1})` : base;
 }
 ---
 
-<h2>{title}</h2>
+<h2 id={id}><a class="anchor" href={`#${id}`}>{title}</a></h2>
 {
     note && (
-        <h3>
-            <i>{note}</i>
+        <h3 id={`${id}-note`}>
+            <a class="anchor" href={`#${id}-note`}>
+                <i>{note}</i>
+            </a>
         </h3>
     )
 }
 <List>
     {
-        tracks.map((track) => {
+        tracks.map((track, t) => {
             const labelled = track.sources.some((s) => s.label);
             // preload="none" so a page of players costs nothing until one is pressed.
             // Sources run smallest-first, ending at the original, so playback never
@@ -55,7 +63,7 @@ function mediaTitle(
                             preload="metadata"
                             data-key={source.file}
                             data-title={mediaTitle(
-                                track.name,
+                                track.artist ?? track.name,
                                 source.label,
                                 i,
                                 track.sources.length,
@@ -95,8 +103,10 @@ function mediaTitle(
             });
 
             return (
-                <li>
-                    {track.name}
+                <li id={trackIds[t]}>
+                    <a class="anchor" href={`#${trackIds[t]}`}>
+                        {track.name}
+                    </a>
                     {labelled ? (
                         <ul>
                             {track.sources.map((source, i) => (
