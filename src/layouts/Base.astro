@@ -32,6 +32,46 @@ const { title, description = "Recordings from the Jack Night DJ nights." } = Ast
         display: block;
         margin: 4px 0;
       }
+      /* player.ts drops the native controls and inserts .bar in their place.
+         Without JS the element keeps them and stays visible. */
+      audio:not([controls]) {
+        display: none;
+      }
+      .bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 4px 0;
+      }
+      .bar .toggle {
+        font: inherit;
+        width: 2.5em;
+        cursor: pointer;
+        color: inherit;
+        background: none;
+        border: 1px solid currentColor;
+        border-radius: 2px;
+        opacity: 0.6;
+      }
+      .bar .toggle:hover,
+      .bar .toggle:focus-visible {
+        opacity: 1;
+      }
+      .bar .scrub {
+        flex: 1;
+        min-width: 0;
+        accent-color: currentColor;
+      }
+      .bar .time {
+        opacity: 0.55;
+        font-size: 0.85em;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
+      /* A cold start on an hour-long file is not instant. */
+      .bar[data-loading] .time::after {
+        content: " ...";
+      }
       li {
         margin-bottom: 12px;
       }

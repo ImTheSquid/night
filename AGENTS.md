@@ -93,11 +93,19 @@ Each source file gets two encodes in `/var/www/audio/_stream/`:
 | Format | Bitrate | For |
 | --- | --- | --- |
 | Opus in Ogg (`.ogg`) | 96k | Chrome, Firefox, Android. Smallest. |
-| AAC in MP4 (`.m4a`) | 128k | Safari and older iOS, whose Ogg/Opus support varies. |
+| AAC in MP4 (`.m4a`) | 128k | Safari and iOS. Plays correctly everywhere. |
 
-The page lists both as `<source>`s with the original as a last resort, so the
-browser picks the first it can play and playback never depends on a transcode
-having happened.
+The markup lists the AAC with the original as a last resort, so playback never
+depends on a transcode having happened and never depends on JS. The Opus is
+carried as `data-opus` and `player.ts` prepends it as a `<source>` only where it
+is known good — `canPlayType(...) === "probably"` *and* a non-Apple
+`navigator.vendor`.
+
+Safari cannot simply be offered the Opus. Since 18.4 it reports Ogg/Opus as
+playable and then misreports the duration of an hour-long file and stalls on
+seek; listing Opus first is what made the player unusable there. The vendor
+check rather than a UA string is deliberate: iOS Chrome and Firefox are WebKit
+too and share the bug.
 
 `_stream/` sits under `/var/www/audio/` for two reasons: nginx's existing
 `location /audio/` already serves it with correct MIME types, so no nginx change
@@ -117,16 +125,27 @@ at build time rather than as a broken player.
 
 ## Durations are rendered, not measured
 
-Every duration on the page comes from the manifest, not from the `<audio>`
-element. This is not a stylistic choice: a page with 31 players that all preload
-metadata hits a browser cap on concurrent media loads, and **none** of them
-resolve — every player sits at `0:00 / 0:00` forever. Measured directly:
-31 concurrent loads → 0 succeeded, with no error event fired.
+Every duration and elapsed time on the page comes from the manifest, not from
+the `<audio>` element. This is not a stylistic choice, and there are two
+independent reasons for it:
 
-So players are `preload="none"` and load nothing until pressed. The one
-exception is a track with a saved position, which loads on page open so it can
-show where you left off — a few at a time (`LOAD_CONCURRENCY` in `player.ts`),
-for the same reason.
+- A page with 31 players that all preload metadata hits a browser cap on
+  concurrent media loads, and **none** of them resolve — every player sits at
+  `0:00 / 0:00` forever. Measured directly: 31 concurrent loads → 0 succeeded,
+  with no error event fired.
+- Even when metadata does load, an engine's own duration for an hour-long
+  progressive stream is not reliable. Safari's is wrong.
+
+So `player.ts` replaces the native controls with its own bar, timed from
+`data-duration`. Players are `preload="none"` and **nothing** on the page loads
+audio until a play button is pressed — a saved position is drawn from
+localStorage and applied on `loadedmetadata`, so resuming costs no requests
+either. `play()` is called straight out of the click handler so the user gesture
+survives the load, and the bar shows `...` until playback actually starts,
+because a cold start on an hour-long file is not instant.
+
+The native controls stay in the markup and are only removed once `player.ts`
+runs, so the page still plays with JS disabled.
 
 ## Development
 

@@ -54,15 +54,19 @@ function mediaTitle(
         tracks.map((track, t) => {
             const labelled = track.sources.some((s) => s.label);
             // preload="none" so a page of players costs nothing until one is pressed.
-            // Sources run smallest-first, ending at the original, so playback never
-            // depends on a transcode having happened.
+            //
+            // AAC first, original last: AAC is the format every engine plays
+            // correctly, so a browser with no JS still gets working playback.
+            // Opus is smaller but Safari 18.4+ *claims* it and then misreports the
+            // duration and stalls on seek, so player.ts opts in only the engines
+            // that handle it -- see data-opus.
             const players = track.sources.map((source, i) => {
                 const info = audioFor(source.file);
                 return (
                     <>
                         <audio
                             controls
-                            preload="metadata"
+                            preload="none"
                             data-key={source.file}
                             data-title={mediaTitle(
                                 track.artist ?? track.name,
@@ -73,13 +77,8 @@ function mediaTitle(
                             data-artist={track.artist ?? track.name}
                             data-album={title}
                             data-duration={info.duration}
+                            data-opus={info.opus?.url}
                         >
-                            {info.opus && (
-                                <source
-                                    src={info.opus.url}
-                                    type="audio/ogg; codecs=opus"
-                                />
-                            )}
                             {info.aac && (
                                 <source
                                     src={info.aac.url}
@@ -88,9 +87,9 @@ function mediaTitle(
                             )}
                             <source src={info.src} type={mimeFor(info.codec)} />
                         </audio>
-                        {/* Duration comes from the manifest, not the player: with preload="none"
-                the control reads 0:00 until pressed, and preloading every player
-                instead trips a browser cap on concurrent media loads. */}
+                        {/* Duration comes from the manifest, not the player: nothing is
+                loaded until pressed, and an engine's own idea of the length of
+                an hour-long stream cannot be trusted. */}
                         <span class="meta">
                             {formatDuration(info.duration)}
                             {info.channels === 1 && " · mono"}

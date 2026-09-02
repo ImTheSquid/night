@@ -9,9 +9,11 @@ already serves with the right MIME types, so this needs no nginx change and no
 root. Two formats, because no single one plays everywhere:
 
   .ogg   Opus 96k  -- Chrome, Firefox, Android. Smallest.
-  .m4a   AAC 128k  -- Safari and older iOS, whose Ogg/Opus support varies.
+  .m4a   AAC 128k  -- Safari and iOS. Plays correctly everywhere.
 
-The page offers both as <source>s and the browser takes the first it can play.
+The page ships the AAC and lets player.ts opt in to the Opus, because Safari
+reports Ogg/Opus as playable and then misreports the duration of an hour-long
+file and stalls on seek.
 Everything here is derived: delete _stream/ and re-run to rebuild it.
 """
 
