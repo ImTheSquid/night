@@ -53,14 +53,14 @@ export async function jackNights(): Promise<Night[]> {
   return entries.sort((a, b) => a.data.order - b.data.order).map((e) => e.data);
 }
 
-/** Second Fridays, oldest first. Untitled ones are headed by their date. */
-export async function secondFridays(): Promise<Night[]> {
-  const entries = await getCollection("secondFridays");
+/** Green Light, oldest first. Untitled ones are headed by their date. */
+export async function greenLight(): Promise<Night[]> {
+  const entries = await getCollection("greenLight");
   return entries
     .sort((a, b) => a.data.date.getTime() - b.data.date.getTime())
     .map((e) => ({
       ...e.data,
-      title: e.data.title ?? `Second Fridays ${formatDate(e.data.date)}`,
+      title: e.data.title ?? `Green Light ${formatDate(e.data.date)}`,
     }));
 }
 
@@ -75,7 +75,7 @@ export async function warnUnlisted(): Promise<void> {
   checked = true;
 
   const referenced = new Set<string>();
-  for (const night of [...(await jackNights()), ...(await secondFridays())]) {
+  for (const night of [...(await jackNights()), ...(await greenLight())]) {
     for (const track of night.tracks) {
       for (const source of track.sources) referenced.add(source.file);
     }

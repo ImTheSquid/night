@@ -45,13 +45,13 @@ quotes and colons, all of which are YAML syntax if left bare.
 ## Series
 
 Each night series is its own collection, because they are not ordered the same
-way: Jack Nights are numbered, Second Fridays are dated.
+way: Jack Nights are numbered, Green Light nights are dated.
 
 ```astro
 ---
 import SetList from "../components/SetList.astro";
-import { secondFridays } from "../lib/sets";
-const sets = await secondFridays();
+import { greenLight } from "../lib/sets";
+const sets = await greenLight();
 ---
 <SetList sets={sets} />
 ```
@@ -61,7 +61,7 @@ To add a series: a collection in `src/content.config.ts`, a getter in
 no changes — it only ever sees `{ title, note?, numbered, tracks }`.
 
 Files whose names start with `_` are skipped by the loaders, so drafts and
-templates can live beside real entries. See `src/data/second-fridays/_example.yaml`
+templates can live beside real entries. See `src/data/green-light/_example.yaml`
 for an annotated template.
 
 ## Commands

@@ -40,10 +40,10 @@ const jackNight = defineCollection({
 
 /** A recurring night, so the date is the only ordering it needs -- and the only
  *  heading it needs, unless a particular one is worth naming. */
-const secondFridays = defineCollection({
+const greenLight = defineCollection({
   // Files starting with _ are ignored, so drafts and templates can sit alongside.
-  loader: glob({ pattern: "**/[!_]*.yaml", base: "./src/data/second-fridays" }),
+  loader: glob({ pattern: "**/[!_]*.yaml", base: "./src/data/green-light" }),
   schema: z.object({ ...night, date: z.coerce.date(), title: z.string().optional() }),
 });
 
-export const collections = { jackNight, secondFridays };
+export const collections = { jackNight, greenLight };

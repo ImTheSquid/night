@@ -1,13 +1,13 @@
 ---
 import Base from "../layouts/Base.astro";
 import SetList from "../components/SetList.astro";
-import { secondFridays } from "../lib/sets";
+import { greenLight } from "../lib/sets";
 
-const sets = await secondFridays();
+const sets = await greenLight();
 ---
 
-<Base title="Second Fridays Repository">
-    <h1 id="top"><a class="anchor" href="#top">SECOND FRIDAYS REPOSITORY</a></h1>
+<Base title="Green Light Repository">
+    <h1 id="top"><a class="anchor" href="#top">GREEN LIGHT REPOSITORY</a></h1>
     <span>Looking for Jack Night? Click <a href="/">here</a>.</span>
     <SetList sets={sets} />
 </Base>
