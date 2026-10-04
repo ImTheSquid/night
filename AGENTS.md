@@ -13,7 +13,7 @@ Static Astro site archiving recordings from the Jack Night DJ nights, served at
 | `src/lib/audio.ts` | Bridges the YAML to the server audio manifest. |
 | `src/components/SetList.astro` | Renders a whole page of nights. |
 | `src/components/Set.astro` | Renders one night. |
-| `src/pages/*.astro` | One page per series, two lines each. |
+| `src/pages/*.astro` | One page per series: a heading and a `<SetList>`. |
 | `src/scripts/player.ts` | Media Session, single-playback, resume-position. |
 | `scripts/audio-sync.py` | Runs **on the server**: probes the library, builds streamable encodes, prints the manifest. |
 | `scripts/rekordbox-setlist.py` | Turns a Rekordbox export into a `setlist:` block. |
@@ -45,26 +45,40 @@ quotes and colons, all of which are YAML syntax if left bare.
 ## Series
 
 Each night series is its own collection, because they are not ordered the same
-way: Jack Nights are numbered, Green Light nights are dated.
+way: Jack Nights have an authored `order`, Green Light nights are dated.
+
+A Green Light night without a `title` is headed by its date. One with a title
+(`Green Light 001`, …) gets the date as a subheading. Either can have a `note`,
+an italic line below that.
 
 ```astro
 ---
+import Base from "../layouts/Base.astro";
 import SetList from "../components/SetList.astro";
 import { greenLight } from "../lib/sets";
 const sets = await greenLight();
 ---
-<SetList sets={sets} />
+<Base title="Green Light Repository">
+  <h1 id="top"><a class="anchor" href="#top">GREEN LIGHT REPOSITORY</a></h1>
+  <SetList sets={sets} />
+</Base>
 ```
 
 To add a series: a collection in `src/content.config.ts`, a getter in
 `src/lib/sets.ts` returning `Night[]`, and a page like the above. `<Set>` needs
-no changes — it only ever sees `{ title, note?, numbered, tracks }`.
+no changes — it only ever sees `{ title, date?, note?, numbered, tracks }`.
+
+Every heading and track name is an `.anchor` linking to itself, marked with a
+faint `#`. Ids are slugs of the text, so renaming a night or track changes its
+link.
 
 Files whose names start with `_` are skipped by the loaders, so drafts and
 templates can live beside real entries. See `src/data/green-light/_example.yaml`
 for an annotated template.
 
 ## Commands
+
+Run these inside `nix-shell`, which provides bun.
 
 ```
 bun run dev      # local dev

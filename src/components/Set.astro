@@ -9,7 +9,7 @@ interface Props {
 }
 
 const { set, id } = Astro.props;
-const { title, note, numbered, tracks } = set;
+const { title, date, note, numbered, tracks } = set;
 const List = numbered ? "ol" : "ul";
 
 // Prefixed by the night, so the same DJ on two nights gets two links.
@@ -40,6 +40,7 @@ function mediaTitle(
 ---
 
 <h2 id={id}><a class="anchor" href={`#${id}`}>{title}</a></h2>
+{date && <h3 class="date">{date}</h3>}
 {
     note && (
         <h3 id={`${id}-note`}>

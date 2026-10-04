@@ -1,0 +1,33 @@
+# Template. The leading _ keeps it out of the build; copy it to YYYY-MM-DD.yaml.
+
+# Required. Sorts the page, and heads the night if there is no title.
+date: 2026-10-09
+
+# Optional. With a title, the date becomes a subheading underneath it.
+title: Green Light 003
+
+# Optional. Italic line under the heading, e.g. what went wrong on the night.
+note: Second half recorded off the room mic
+
+# Optional. true renders the tracks as a numbered list.
+numbered: false
+
+tracks:
+  - name: hewillyeah            # Shown on the page, and the Media Session title.
+    artist: hewillyeah          # Optional Media Session artist; defaults to name.
+    sources:
+      # Path under /var/www/audio on the server. The build fails if it is missing.
+      - file: 2f/2026-10-09/hewillyeah at GREEN LIGHT 003.flac
+
+  - name: ImTheSquid
+    sources:
+      # Each source gets its own player. A label is shown above it;
+      # unlabelled, they are only told apart in the Media Session title.
+      - file: 2f/2026-10-09/ImTheSquid part 1.flac
+        label: Part 1
+      - file: 2f/2026-10-09/ImTheSquid part 2.flac
+        label: Part 2
+    # Paste from scripts/rekordbox-setlist.py. Keep entries quoted.
+    setlist:
+      - "Wire One - Scared of Silence (2026 Re-Wire)"
+      - "gaszia2 - Wannacry x Destiny Mash"

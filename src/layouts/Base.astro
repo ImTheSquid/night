@@ -79,22 +79,35 @@ const { title, description = "Recordings from the Jack Night DJ nights." } = Ast
       :target {
         scroll-margin-top: 12px;
       }
-      /* Headings read as text; the # only shows when you go looking for it. */
+      /* Headings and track names link to themselves. The # is always there,
+         faint, so it works on touch screens too. */
       .anchor {
         color: inherit;
         text-decoration: none;
       }
       .anchor::after {
         content: " #";
-        opacity: 0;
+        opacity: 0.3;
+      }
+      .anchor:hover,
+      .anchor:focus-visible {
+        text-decoration: underline dotted;
       }
       .anchor:hover::after,
       .anchor:focus-visible::after {
-        opacity: 0.4;
+        opacity: 0.8;
       }
       /* One row in a page of near-identical rows: mark the one that was linked. */
       :target > .anchor {
         text-decoration: underline;
+      }
+      /* Date and note read as one subheading block. */
+      h3.date {
+        font-weight: normal;
+        margin-bottom: 0;
+      }
+      h3.date + h3 {
+        margin-top: 4px;
       }
       /* Duration, size and the FLAC link. Deliberately quiet -- the track
          names stay the thing you read. */

@@ -4,6 +4,8 @@ import { orphans } from "./audio";
 /** What <Set> renders. Each series maps its own entries onto this. */
 export type Night = {
   title: string;
+  /** Plain subheading, for when the title isn't already the date. */
+  date?: string;
   note?: string;
   numbered: boolean;
   tracks: {
@@ -53,15 +55,17 @@ export async function jackNights(): Promise<Night[]> {
   return entries.sort((a, b) => a.data.order - b.data.order).map((e) => e.data);
 }
 
-/** Green Light, oldest first. Untitled ones are headed by their date. */
+/** Green Light, oldest first. Untitled ones are headed by their date; titled
+ *  ones carry it as a subheading. */
 export async function greenLight(): Promise<Night[]> {
   const entries = await getCollection("greenLight");
   return entries
     .sort((a, b) => a.data.date.getTime() - b.data.date.getTime())
-    .map((e) => ({
-      ...e.data,
-      title: e.data.title ?? `Green Light ${formatDate(e.data.date)}`,
-    }));
+    .map(({ data: { date, title, ...night } }) =>
+      title
+        ? { ...night, title, date: formatDate(date) }
+        : { ...night, title: `Green Light ${formatDate(date)}` },
+    );
 }
 
 let checked = false;

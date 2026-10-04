@@ -30,19 +30,22 @@ const night = {
   tracks: z.array(track).min(1),
 };
 
+/** Files starting with _ are ignored, so drafts and templates can sit alongside.
+ *  A negated pattern rather than `[!_]*`, which the dev watcher's matcher
+ *  inverts. */
+const yaml = (base: string) => glob({ pattern: ["**/*.yaml", "!**/_*"], base });
+
 /** The numbered Jack Nights. Sequence is authored, since it is not the dates
  *  people refer to them by. */
 const jackNight = defineCollection({
-  // Files starting with _ are ignored, so drafts and templates can sit alongside.
-  loader: glob({ pattern: "**/[!_]*.yaml", base: "./src/data/jack-night" }),
+  loader: yaml("./src/data/jack-night"),
   schema: z.object({ order: z.number(), ...night }),
 });
 
 /** A recurring night, so the date is the only ordering it needs -- and the only
  *  heading it needs, unless a particular one is worth naming. */
 const greenLight = defineCollection({
-  // Files starting with _ are ignored, so drafts and templates can sit alongside.
-  loader: glob({ pattern: "**/[!_]*.yaml", base: "./src/data/green-light" }),
+  loader: yaml("./src/data/green-light"),
   schema: z.object({ ...night, date: z.coerce.date(), title: z.string().optional() }),
 });
 
