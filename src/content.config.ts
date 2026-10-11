@@ -27,6 +27,8 @@ const night = {
   note: z.string().optional(),
   /** Render as <ol> rather than <ul>. */
   numbered: z.boolean().default(false),
+  /** Album artwork, a JPEG or PNG path under /audio. Must exist in the manifest. */
+  cover: z.string().optional(),
   tracks: z.array(track).min(1),
 };
 

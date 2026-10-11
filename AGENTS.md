@@ -11,11 +11,15 @@ Static Astro site archiving recordings from the Jack Night DJ nights, served at
 | `src/content.config.ts` | One collection per series. |
 | `src/lib/sets.ts` | Fetches and sorts each series into the shape `<Set>` renders. |
 | `src/lib/audio.ts` | Bridges the YAML to the server audio manifest. |
+| `src/lib/albums.ts` | Maps a night onto its album download: files, tags, cover. |
+| `src/pages/albums.json.ts` | Emits every album for the album server. |
 | `src/components/SetList.astro` | Renders a whole page of nights. |
 | `src/components/Set.astro` | Renders one night. |
 | `src/pages/*.astro` | One page per series: a heading and a `<SetList>`. |
 | `src/scripts/player.ts` | Media Session, single-playback, resume-position. |
+| `src/scripts/album.ts` | Progress beside "Download album" while the zip is built. |
 | `scripts/audio-sync.py` | Runs **on the server**: probes the library, builds streamable encodes, prints the manifest. |
+| `scripts/album-server.py` | Runs **on the server**: zips tagged albums on request. |
 | `scripts/rekordbox-setlist.py` | Turns a Rekordbox export into a `setlist:` block. |
 | `scripts/deploy.mjs` | The one command. |
 
@@ -102,12 +106,13 @@ and prints a manifest to `.audio-manifest.json`, which is gitignored and refetch
 whenever it is missing. So `bun run dev` on a fresh clone just works, provided
 `ssh server` does.
 
-Each source file gets two encodes in `/var/www/audio/_stream/`:
+Each source file gets its encodes in `/var/www/audio/_stream/`:
 
 | Format | Bitrate | For |
 | --- | --- | --- |
 | Opus in Ogg (`.ogg`) | 96k | Chrome, Firefox, Android. Smallest. |
 | AAC in MP4 (`.m4a`) | 128k | Safari and iOS. Plays correctly everywhere. |
+| ALAC in MP4 (`.alac.m4a`) | lossless | The album download. FLAC/PCM sources only; Apple Music imports ALAC, not FLAC. |
 
 The markup lists the AAC with the original as a last resort, so playback never
 depends on a transcode having happened and never depends on JS. The Opus is
@@ -129,13 +134,57 @@ rebuild.
 
 ## Adding a night
 
-1. Put the audio in `/var/www/audio/<set>/` on the server.
-2. Add a `src/data/<series>/<name>.yaml` referencing those files by path.
+1. Put the audio in `/var/www/audio/<set>/` on the server, and optionally a
+   cover photo (JPEG or PNG) beside it.
+2. Add a `src/data/<series>/<name>.yaml` referencing those files by path, the
+   photo as `cover:`.
 3. `bun run deploy`.
 
-The build fails on a `file:` that the server doesn't have, and warns about files
-the server has that no page references — so a typo or a forgotten track surfaces
-at build time rather than as a broken player.
+The build fails on a `file:` or `cover:` that the server doesn't have, and warns
+about audio the server has that no page references — so a typo or a forgotten
+track surfaces at build time rather than as a broken player.
+
+## Album downloads
+
+Every night has a "Download album" link to `/albums/<night-id>.zip`: a folder of
+tagged tracks ready to drag into Apple Music. Each source is one track. Album
+artist is the series, the setlist goes in as lyrics, and the cover, if there is
+one, is embedded and also included as `cover.jpg`. Lossless sources use their
+ALAC encode; lossy ones (AAC, MP3) go in as they are.
+
+The zips are built on request, not ahead of time, by `scripts/album-server.py`.
+It runs as the `jack-night-albums` systemd **user** unit on 127.0.0.1:8787;
+`bun run deploy` installs and restarts it. The build writes `dist/albums.json`
+and the server reads it from the web root. That file is its only source of
+paths: the request's album id is just a key into it.
+
+A build remuxes the tracks with ffmpeg (`-c copy`, so seconds, not minutes) and
+stores them uncompressed in a zip in `/var/tmp/jack-night-albums/`. The name is
+a hash of the album and its inputs, so editing the YAML or replacing audio gets
+a fresh zip. Cached zips are served by nginx via `X-Accel-Redirect`, so
+downloads resume. A request that would wait more than 2 s gets a 202 instead,
+which keeps it well under Cloudflare's 100 s timeout. `src/scripts/album.ts`
+polls through those with HEAD, showing elapsed time beside the link, and starts
+the download in place; without JS the 202 is a page that refreshes itself. The cache is capped at 20 GB (`JACK_NIGHT_ALBUM_CACHE_GB`), and
+`/var/tmp` ages out anything older than 30 days. All of it is derived, so it is
+safe to delete.
+
+nginx needs this in the `night.jackhogan.me` block. It is a one-off and the
+only part that needs root:
+
+```nginx
+location /albums/ {
+    proxy_pass http://127.0.0.1:8787;
+    proxy_read_timeout 30s;
+}
+location /_album-cache/ {
+    internal;
+    alias /var/tmp/jack-night-albums/;
+    types { application/zip zip; }
+}
+```
+
+Logs: `ssh server journalctl --user -u jack-night-albums`.
 
 ## Durations are rendered, not measured
 

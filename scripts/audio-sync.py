@@ -6,7 +6,7 @@ scripts/deploy.mjs pipes it over ssh to `python3 -`.
 
 Outputs land in <audio-root>/_stream/, which nginx's existing `location /audio/`
 already serves with the right MIME types, so this needs no nginx change and no
-root. Two formats, because no single one plays everywhere:
+root. Two streaming formats, because no single one plays everywhere:
 
   .ogg   Opus 96k  -- Chrome, Firefox, Android. Smallest.
   .m4a   AAC 128k  -- Safari and iOS. Plays correctly everywhere.
@@ -14,6 +14,11 @@ root. Two formats, because no single one plays everywhere:
 The page ships the AAC and lets player.ts opt in to the Opus, because Safari
 reports Ogg/Opus as playable and then misreports the duration of an hour-long
 file and stalls on seek.
+
+Lossless sources also get a .alac.m4a, the album download's copy: Apple Music
+imports ALAC but not FLAC.
+
+Cover images are listed in the manifest so the build can check `cover:` paths.
 Everything here is derived: delete _stream/ and re-run to rebuild it.
 """
 
@@ -30,15 +35,22 @@ from pathlib import Path
 FFMPEG = "/usr/lib/jellyfin-ffmpeg/ffmpeg"
 FFPROBE = "/usr/lib/jellyfin-ffmpeg/ffprobe"
 AUDIO_EXTS = {".flac", ".m4a", ".mp3", ".wav", ".ogg", ".aac"}
+IMAGE_EXTS = {".jpg", ".jpeg", ".png"}
 STREAM_DIR = "_stream"
 
-# suffix -> (ffmpeg args, manifest key). Order is the <source> order.
+# suffix -> (ffmpeg args, manifest key, only for sources Apple Music won't import).
 FORMATS = {
     ".ogg": (["-c:a", "libopus", "-b:a", "96k", "-vbr", "on",
-              "-application", "audio", "-f", "opus"], "opus"),
+              "-application", "audio", "-f", "opus"], "opus", False),
     ".m4a": (["-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart",
-              "-f", "mp4"], "aac"),
+              "-f", "mp4"], "aac", False),
+    ".alac.m4a": (["-c:a", "alac", "-f", "ipod"], "alac", True),
 }
+
+
+def needs_alac(codec: str | None) -> bool:
+    """Lossless, but not in a form Apple Music imports."""
+    return codec == "flac" or (codec or "").startswith("pcm_")
 
 
 def log(*a):
@@ -132,17 +144,20 @@ def main() -> int:
         info = probe(src)
         info["src"] = "/audio/" + str(rel)
 
-        stale = [
+        wanted = [
             (stream_root / rel.with_suffix(suffix), ffargs)
-            for suffix, (ffargs, _) in FORMATS.items()
-            if not (stream_root / rel.with_suffix(suffix)).exists()
-            or src.stat().st_mtime > (stream_root / rel.with_suffix(suffix)).stat().st_mtime
+            for suffix, (ffargs, _, alac_only) in FORMATS.items()
+            if not alac_only or needs_alac(info["codec"])
+        ]
+        stale = [
+            (dst, ffargs) for dst, ffargs in wanted
+            if not dst.exists() or src.stat().st_mtime > dst.stat().st_mtime
         ]
         if stale and not args.probe_only:
-            log(f"  encode {rel} -> {', '.join(d.suffix for d, _ in stale)}")
+            log(f"  encode {rel} -> {', '.join(d.name for d, _ in stale)}")
             encode(src, stale)
 
-        for suffix, (_, key) in FORMATS.items():
+        for suffix, (_, key, _) in FORMATS.items():
             dst = stream_root / rel.with_suffix(suffix)
             if dst.exists():
                 info[key] = {
@@ -154,6 +169,14 @@ def main() -> int:
     log(f"{len(sources)} files under {args.audio_root}")
     with ThreadPoolExecutor(max_workers=args.jobs) as pool:
         entries = dict(pool.map(handle, sources))
+
+    images = {
+        str(p.relative_to(args.audio_root)): {"bytes": p.stat().st_size}
+        for p in sorted(args.audio_root.rglob("*"))
+        if p.is_file()
+        and p.suffix.lower() in IMAGE_EXTS
+        and STREAM_DIR not in p.relative_to(args.audio_root).parts
+    }
 
     # Encodes whose source is gone would otherwise outlive the library.
     if not args.probe_only and stream_root.exists():
@@ -169,6 +192,7 @@ def main() -> int:
     payload = json.dumps({
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "tracks": entries,
+        "images": images,
     }, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
 
     if args.manifest == "-":
@@ -182,7 +206,7 @@ def main() -> int:
     log(f"{len(entries)} tracks, "
         f"{sum(e['duration'] for e in entries.values()) / 3600:.1f}h, "
         f"source {src_total / 1e9:.2f} GB")
-    for key in ("opus", "aac"):
+    for _, key, _ in FORMATS.values():
         total = sum(e[key]["bytes"] for e in entries.values() if key in e)
         if total:
             log(f"{key:4} {total / 1e9:.2f} GB ({100 - total / src_total * 100:.0f}% smaller)")

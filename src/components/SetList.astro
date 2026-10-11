@@ -1,6 +1,6 @@
 ---
 import Set from "./Set.astro";
-import { uniqueSlugs, warnUnlisted, type Night } from "../lib/sets";
+import { nightIds, warnUnlisted, type Night } from "../lib/sets";
 
 interface Props {
   sets: Night[];
@@ -10,7 +10,7 @@ const { sets } = Astro.props;
 
 // Ids are assigned here rather than in <Set> so collisions can be seen and
 // broken across the whole page.
-const ids = uniqueSlugs(sets.map((set) => set.title));
+const ids = nightIds(sets);
 
 // Build-time only: flags audio on the server that no page lists.
 await warnUnlisted();
@@ -19,3 +19,4 @@ await warnUnlisted();
 {sets.map((set, i) => <Set set={set} id={ids[i]} />)}
 
 <script src="../scripts/player.ts"></script>
+<script src="../scripts/album.ts"></script>

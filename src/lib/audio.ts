@@ -25,9 +25,15 @@ export type AudioInfo = {
   opus?: Encoded;
   /** AAC in MP4. The fallback that plays everywhere. */
   aac?: Encoded;
+  /** ALAC in MP4, for the album download. Only made from FLAC/PCM sources. */
+  alac?: Encoded;
 };
 
-type Manifest = { generated: string; tracks: Record<string, AudioInfo> };
+type Manifest = {
+  generated: string;
+  tracks: Record<string, AudioInfo>;
+  images?: Record<string, { bytes: number }>;
+};
 
 /**
  * The audio lives on the server, not here, so metadata is probed there and
@@ -71,6 +77,18 @@ export function audioFor(file: string): AudioInfo {
     );
   }
   return info;
+}
+
+/** Checks an authored `cover:` path. Unknown paths fail the build. */
+export function imageFor(file: string): string {
+  if (!manifest.images?.[file]) {
+    throw new Error(
+      `cover "${file}" is not in the audio manifest.\n` +
+        `Either the path is wrong, or it is new on the server -- ` +
+        `delete .audio-manifest.json to re-probe.`,
+    );
+  }
+  return file;
 }
 
 /** Files present on the server that no set references. */

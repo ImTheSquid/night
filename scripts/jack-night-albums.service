@@ -1,0 +1,15 @@
+# Album downloads for night.jackhogan.me. Installed by scripts/deploy.mjs.
+[Unit]
+Description=Jack Night album zips
+
+[Service]
+ExecStart=/usr/bin/python3 %h/.local/share/jack-night/album-server.py
+Restart=on-failure
+# Builds should yield to Jellyfin and anything else interactive.
+Nice=15
+# 0640 files in a setgid www-data dir: readable by nginx, nobody else.
+UMask=0027
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target

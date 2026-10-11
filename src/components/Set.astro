@@ -1,6 +1,7 @@
 ---
+import { album } from "../lib/albums";
 import { audioFor, formatBytes, formatDuration } from "../lib/audio";
-import { uniqueSlugs, type Night } from "../lib/sets";
+import { sourceTitle, uniqueSlugs, type Night } from "../lib/sets";
 
 interface Props {
     set: Night;
@@ -33,10 +34,10 @@ function mediaTitle(
     index: number,
     total: number,
 ) {
-    const base = `${artist} @ ${title}`;
-    if (label) return `${base} — ${label}`;
-    return total > 1 ? `${base} (Part ${index + 1})` : base;
+    return sourceTitle(`${artist} @ ${title}`, label, index, total);
 }
+
+const albumBytes = album(set).bytes;
 ---
 
 <h2 id={id}><a class="anchor" href={`#${id}`}>{title}</a></h2>
@@ -50,6 +51,13 @@ function mediaTitle(
         </h3>
     )
 }
+{/* No `download` attribute: the first request may get the "preparing" page,
+    which `download` would save as the zip. album.ts shows progress instead. */}
+<p class="meta">
+    <a href={`/albums/${id}.zip`} data-album>Download album</a> · {formatBytes(albumBytes)}<span
+        data-album-status
+        role="status"></span>
+</p>
 <List>
     {
         tracks.map((track, t) => {

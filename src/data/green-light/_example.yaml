@@ -12,6 +12,10 @@ note: Second half recorded off the room mic
 # Optional. true renders the tracks as a numbered list.
 numbered: false
 
+# Optional. Album download artwork: a JPEG or PNG under /var/www/audio on the
+# server. The build fails if it is missing.
+cover: 2f/2026-10-09/cover.jpg
+
 tracks:
   - name: hewillyeah            # Shown on the page, and the Media Session title.
     artist: hewillyeah          # Optional Media Session artist; defaults to name.

@@ -6,8 +6,14 @@ export type Night = {
   title: string;
   /** Plain subheading, for when the title isn't already the date. */
   date?: string;
+  /** The night's calendar day, where known. The album's year. */
+  recorded?: Date;
+  /** The series name, and the album artist. */
+  series: string;
   note?: string;
   numbered: boolean;
+  /** Album artwork, a path under /audio. */
+  cover?: string;
   tracks: {
     name: string;
     artist?: string;
@@ -49,10 +55,29 @@ export function uniqueSlugs(titles: string[], fallback = "item"): string[] {
   });
 }
 
+/** Anchor ids for a page of nights. Also the album download's name, so the
+ *  page and albums.json must both get them from here. */
+export function nightIds(sets: Night[]): string[] {
+  return uniqueSlugs(sets.map((set) => set.title));
+}
+
+/** Tells apart the sources of one track: by label, else by part number. */
+export function sourceTitle(
+  artist: string,
+  label: string | undefined,
+  index: number,
+  total: number,
+): string {
+  if (label) return `${artist} — ${label}`;
+  return total > 1 ? `${artist} (Part ${index + 1})` : artist;
+}
+
 /** The numbered Jack Nights, oldest first. */
 export async function jackNights(): Promise<Night[]> {
   const entries = await getCollection("jackNight");
-  return entries.sort((a, b) => a.data.order - b.data.order).map((e) => e.data);
+  return entries
+    .sort((a, b) => a.data.order - b.data.order)
+    .map((e) => ({ ...e.data, series: "Jack Night" }));
 }
 
 /** Green Light, oldest first. Untitled ones are headed by their date; titled
@@ -61,11 +86,12 @@ export async function greenLight(): Promise<Night[]> {
   const entries = await getCollection("greenLight");
   return entries
     .sort((a, b) => a.data.date.getTime() - b.data.date.getTime())
-    .map(({ data: { date, title, ...night } }) =>
-      title
-        ? { ...night, title, date: formatDate(date) }
-        : { ...night, title: `Green Light ${formatDate(date)}` },
-    );
+    .map(({ data: { date, title, ...night } }) => {
+      const common = { ...night, recorded: date, series: "Green Light" };
+      return title
+        ? { ...common, title, date: formatDate(date) }
+        : { ...common, title: `Green Light ${formatDate(date)}` };
+    });
 }
 
 let checked = false;
