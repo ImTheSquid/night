@@ -52,14 +52,9 @@ const manifest = execFileSync("ssh", [HOST, "python3", "-", "--manifest", "-"], 
 writeFileSync(MANIFEST, manifest);
 
 // Without both streaming encodes some browser is left falling back to a 400 MB
-// FLAC; without the ALAC, the album download has no importable copy.
+// FLAC.
 const { tracks } = JSON.parse(manifest);
-const gaps = (t) =>
-  [
-    !t.opus && "no opus",
-    !t.aac && "no aac",
-    !t.alac && (t.codec === "flac" || t.codec.startsWith("pcm_")) && "no alac",
-  ].filter(Boolean);
+const gaps = (t) => [!t.opus && "no opus", !t.aac && "no aac"].filter(Boolean);
 const missing = Object.entries(tracks).filter(([, t]) => gaps(t).length);
 if (missing.length) {
   throw new Error(

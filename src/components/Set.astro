@@ -38,6 +38,11 @@ function mediaTitle(
 }
 
 const albumBytes = album(set).bytes;
+// Lossless keeps the original URL, so links shared before the split still work.
+const downloads = [
+    { label: "Lossless", href: `/albums/${id}.zip`, bytes: albumBytes.lossless },
+    { label: "Compressed", href: `/albums/${id}.aac.zip`, bytes: albumBytes.compressed },
+];
 ---
 
 <h2 id={id}><a class="anchor" href={`#${id}`}>{title}</a></h2>
@@ -52,11 +57,22 @@ const albumBytes = album(set).bytes;
     )
 }
 {/* No `download` attribute: the first request may get the "preparing" page,
-    which `download` would save as the zip. album.ts shows progress instead. */}
+    which `download` would save as the zip. album.ts shows progress instead.
+    Each link has its own span, where album.ts finds its status. Sizes are
+    estimates: the zips are encoded on request. */}
 <p class="meta">
-    <a href={`/albums/${id}.zip`} data-album>Download album</a> · {formatBytes(albumBytes)}<span
-        data-album-status
-        role="status"></span>
+    {
+        downloads.map(({ label, href, bytes }, i) => (
+            <>
+                {i > 0 && <br />}
+                <span>
+                    <a href={href} data-album>Download Album ({label})</a> · ~{formatBytes(bytes)}<span
+                        data-album-status
+                        role="status"></span>
+                </span>
+            </>
+        ))
+    }
 </p>
 <List>
     {

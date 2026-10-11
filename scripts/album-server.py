@@ -5,11 +5,15 @@ Runs on the server as a systemd --user unit (jack-night-albums.service), which
 scripts/deploy.mjs installs. nginx proxies /albums/ here. A finished zip is
 handed back with X-Accel-Redirect, so nginx serves it with Range support.
 
-The build writes albums.json, and that file is the only source of paths. The one
-request input, the album id, is used only as a key into it.
+The build writes albums.json, and that file is the only source of paths. The
+request inputs, the album id and the variant, are used only as keys.
 
-Zips are cached under a hash of the album and its inputs, so an edit to the YAML
-or the audio gets a fresh zip. A build that outlasts WAIT gets a self-refreshing
+Each album comes in two variants: <id>.zip is lossless (ALAC) and <id>.aac.zip
+is compressed (AAC 256k). Lossless sources are encoded per variant on request;
+lossy ones are copied into both as they are.
+
+Zips are cached under a hash of the album, variant and inputs, so an edit to the
+YAML or the audio gets a fresh zip. A build that outlasts WAIT gets a self-refreshing
 "preparing" page instead, keeping requests under Cloudflare's 100 s timeout.
 """
 
@@ -28,6 +32,7 @@ import time
 import traceback
 import unicodedata
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import quote
@@ -44,8 +49,14 @@ ACCEL = "/_album-cache/"  # nginx `internal` location aliasing CACHE
 WAIT = 2  # seconds a request waits on a build before getting the "preparing" page
 RETRY = 60  # seconds before a failed build is attempted again
 MAX_BUILDS = 2
+TRACK_JOBS = 4  # encodes per build; the encoders are single-threaded
 
-ROUTE = re.compile(r"/albums/([a-z0-9-]{1,100})\.zip")
+ROUTE = re.compile(r"/albums/([a-z0-9-]{1,100})(\.aac)?\.zip")
+# variant -> (audio codec args for lossless sources, name suffix)
+VARIANTS = {
+    "lossless": (["-c:a", "alac"], ""),
+    "compressed": (["-c:a", "libfdk_aac", "-b:a", "256k"], " (Compressed)"),
+}
 # Tags passed through to ffmpeg. Anything else in albums.json is ignored.
 TAGS = {"title", "artist", "album", "album_artist", "date", "track", "lyrics", "compilation"}
 # The formats albums.ts lets through: ALAC or AAC in MP4, and MP3.
@@ -107,8 +118,9 @@ def inputs(spec: dict) -> list[Path]:
     return paths
 
 
-def cache_key(spec: dict) -> str:
+def cache_key(variant: str, spec: dict) -> str:
     h = hashlib.sha256(SELF)
+    h.update(variant.encode() + b"\0")
     h.update(json.dumps(spec, sort_keys=True).encode())
     for p in inputs(spec):
         st = p.stat()  # follows symlinks
@@ -120,10 +132,10 @@ def zip_path(key: str) -> Path:
     return CACHE / f"{key}.zip"
 
 
-def tag(src: Path, dst: Path, tags: dict, cover: Path | None) -> None:
-    """Copy src to dst with fresh tags and artwork, without re-encoding. Inputs
-    are `file:` URLs under a file-only whitelist, so no path is read as an
-    option or a protocol."""
+def tag(src: Path, dst: Path, tags: dict, cover: Path | None, codec: list[str]) -> None:
+    """Copy src to dst with fresh tags and artwork, encoding the audio with
+    `codec` if given. Inputs are `file:` URLs under a file-only whitelist, so no
+    path is read as an option or a protocol."""
     cmd = [FFMPEG, "-hide_banner", "-loglevel", "error", "-nostdin", "-y",
            "-protocol_whitelist", "file", "-i", f"file:{src}"]
     if cover:
@@ -131,7 +143,7 @@ def tag(src: Path, dst: Path, tags: dict, cover: Path | None) -> None:
     cmd += ["-map", "0:a:0"]
     if cover:
         cmd += ["-map", "1:v:0", "-disposition:v:0", "attached_pic"]
-    cmd += ["-c", "copy", "-map_metadata", "-1"]
+    cmd += ["-c", "copy", *codec, "-map_metadata", "-1"]
     for k, v in tags.items():
         if k in TAGS:
             cmd += ["-metadata", f"{k}={v}"]
@@ -141,23 +153,37 @@ def tag(src: Path, dst: Path, tags: dict, cover: Path | None) -> None:
         raise RuntimeError(f"ffmpeg failed on {src}: {result.stderr.strip()}")
 
 
-def build(key: str, spec: dict) -> None:
-    """Tag every track into a temp dir and store them uncompressed in a zip --
-    the audio is already compressed. Written to .part and renamed, so a killed
-    build never leaves a truncated zip to be served."""
-    folder = safe_name(spec["name"]) or "album"
+def album_name(variant: str, spec: dict) -> str:
+    return spec["name"] + VARIANTS[variant][1]
+
+
+def build(key: str, variant: str, spec: dict) -> None:
+    """Tag and encode the tracks into a temp dir, several at once, and store them
+    in order, uncompressed, in a zip -- the audio is already compressed. Written
+    to .part and renamed, so a killed build never leaves a truncated zip to be
+    served."""
+    codec = VARIANTS[variant][0]
+    folder = safe_name(album_name(variant, spec)) or "album"
     cover = audio_path(spec["cover"]) if spec.get("cover") else None
     part = CACHE / f"{key}.zip.part"
     work = Path(tempfile.mkdtemp(prefix="build-", dir=CACHE))
     started = time.monotonic()
+
+    def prepare(i: int, track: dict) -> Path:
+        src = audio_path(track["file"])
+        out = work / f"{i}{'.m4a' if track['lossless'] else src.suffix}"
+        tag(src, out, {**spec["tags"], **track["tags"]}, cover,
+            codec if track["lossless"] else [])
+        return out
+
+    pool = ThreadPoolExecutor(TRACK_JOBS)
     try:
+        outs = [pool.submit(prepare, i, t) for i, t in enumerate(spec["tracks"], 1)]
         with zipfile.ZipFile(part, "w", zipfile.ZIP_STORED, allowZip64=True) as zf:
-            for i, track in enumerate(spec["tracks"], 1):
-                src = audio_path(track["file"])
-                out = work / f"{i}{src.suffix}"
-                tag(src, out, {**spec["tags"], **track["tags"]}, cover)
+            for i, (track, pending) in enumerate(zip(spec["tracks"], outs), 1):
+                out = pending.result()
                 title = safe_name(track["tags"].get("title", "")) or "Track"
-                zf.write(out, f"{folder}/{i:02d} {title}{src.suffix}")
+                zf.write(out, f"{folder}/{i:02d} {title}{out.suffix}")
                 out.unlink()
             if cover:
                 zf.write(cover, f"{folder}/cover{cover.suffix.lower()}")
@@ -165,6 +191,8 @@ def build(key: str, spec: dict) -> None:
         log(f"built {folder} ({zip_path(key).stat().st_size / 1e9:.2f} GB) "
             f"in {time.monotonic() - started:.0f}s")
     finally:
+        # Running encodes finish before their directory is removed.
+        pool.shutdown(cancel_futures=True)
         shutil.rmtree(work, ignore_errors=True)
         part.unlink(missing_ok=True)
     evict()
@@ -190,17 +218,17 @@ def evict() -> None:
 
 
 class Build:
-    def __init__(self, key: str, spec: dict):
+    def __init__(self, key: str, variant: str, spec: dict):
         self.done = threading.Event()
         self.error: Exception | None = None
         self.finished = 0.0
-        threading.Thread(target=self.run, args=(key, spec), daemon=True).start()
+        threading.Thread(target=self.run, args=(key, variant, spec), daemon=True).start()
 
-    def run(self, key: str, spec: dict) -> None:
+    def run(self, key: str, variant: str, spec: dict) -> None:
         try:
             with slots:
                 if not zip_path(key).exists():
-                    build(key, spec)
+                    build(key, variant, spec)
         except Exception as e:
             self.error = e
             log(f"build {key} failed:\n{traceback.format_exc()}")
@@ -214,13 +242,13 @@ builds: dict[str, Build] = {}
 builds_lock = threading.Lock()
 
 
-def ensure(key: str, spec: dict) -> Build:
+def ensure(key: str, variant: str, spec: dict) -> Build:
     """The build for key: one already running, one that just failed, or a new one."""
     with builds_lock:
         b = builds.get(key)
         if b and (not b.done.is_set() or (b.error and time.monotonic() - b.finished < RETRY)):
             return b
-        b = builds[key] = Build(key, spec)
+        b = builds[key] = Build(key, variant, spec)
         return b
 
 
@@ -249,27 +277,28 @@ class Handler(BaseHTTPRequestHandler):
         match = ROUTE.fullmatch(self.path.split("?", 1)[0])
         if not match:
             return self.page(404, "Not found", "No such album.")
+        variant = "compressed" if match[2] else "lossless"
         try:
             spec = albums().get(match[1])
             if not spec:
                 return self.page(404, "Not found", "No such album.")
-            key = cache_key(spec)
+            key = cache_key(variant, spec)
         except (OSError, ValueError, KeyError):
             log(f"album {match[1]} unavailable:\n{traceback.format_exc()}")
             return self.page(500, "Unavailable", "This album isn't available right now.")
 
         if not zip_path(key).exists():
-            b = ensure(key, spec)
+            b = ensure(key, variant, spec)
             b.done.wait(WAIT)
             if not zip_path(key).exists():
                 if b.error:
                     return self.page(500, "Failed", "This album couldn't be built. Try again in a minute.",
                                      back=spec.get("back", "/"))
-                name = html.escape(spec["name"])
+                name = html.escape(album_name(variant, spec))
                 return self.page(
                     202, f"Preparing {name}",
                     f"Preparing <b>{name}</b>. The download starts on its own once it's ready, "
-                    f"which can take a minute or two.",
+                    f"which can take a few minutes.",
                     refresh=True,
                     back=spec.get("back", "/"),
                 )
@@ -278,7 +307,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("X-Accel-Redirect", f"{ACCEL}{key}.zip")
         self.send_header("Content-Type", "application/zip")
-        self.send_header("Content-Disposition", disposition(spec["name"]))
+        self.send_header("Content-Disposition", disposition(album_name(variant, spec)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", "0")
         self.end_headers()

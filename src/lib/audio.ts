@@ -25,8 +25,6 @@ export type AudioInfo = {
   opus?: Encoded;
   /** AAC in MP4. The fallback that plays everywhere. */
   aac?: Encoded;
-  /** ALAC in MP4, for the album download. Only made from FLAC/PCM sources. */
-  alac?: Encoded;
 };
 
 type Manifest = {

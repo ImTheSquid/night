@@ -15,9 +15,6 @@ The page ships the AAC and lets player.ts opt in to the Opus, because Safari
 reports Ogg/Opus as playable and then misreports the duration of an hour-long
 file and stalls on seek.
 
-Lossless sources also get a .alac.m4a, the album download's copy: Apple Music
-imports ALAC but not FLAC.
-
 Cover images are listed in the manifest so the build can check `cover:` paths.
 Everything here is derived: delete _stream/ and re-run to rebuild it.
 """
@@ -38,19 +35,13 @@ AUDIO_EXTS = {".flac", ".m4a", ".mp3", ".wav", ".ogg", ".aac"}
 IMAGE_EXTS = {".jpg", ".jpeg", ".png"}
 STREAM_DIR = "_stream"
 
-# suffix -> (ffmpeg args, manifest key, only for sources Apple Music won't import).
+# suffix -> (ffmpeg args, manifest key).
 FORMATS = {
     ".ogg": (["-c:a", "libopus", "-b:a", "96k", "-vbr", "on",
-              "-application", "audio", "-f", "opus"], "opus", False),
+              "-application", "audio", "-f", "opus"], "opus"),
     ".m4a": (["-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart",
-              "-f", "mp4"], "aac", False),
-    ".alac.m4a": (["-c:a", "alac", "-f", "ipod"], "alac", True),
+              "-f", "mp4"], "aac"),
 }
-
-
-def needs_alac(codec: str | None) -> bool:
-    """Lossless, but not in a form Apple Music imports."""
-    return codec == "flac" or (codec or "").startswith("pcm_")
 
 
 def log(*a):
@@ -146,8 +137,7 @@ def main() -> int:
 
         wanted = [
             (stream_root / rel.with_suffix(suffix), ffargs)
-            for suffix, (ffargs, _, alac_only) in FORMATS.items()
-            if not alac_only or needs_alac(info["codec"])
+            for suffix, (ffargs, _) in FORMATS.items()
         ]
         stale = [
             (dst, ffargs) for dst, ffargs in wanted
@@ -157,7 +147,7 @@ def main() -> int:
             log(f"  encode {rel} -> {', '.join(d.name for d, _ in stale)}")
             encode(src, stale)
 
-        for suffix, (_, key, _) in FORMATS.items():
+        for suffix, (_, key) in FORMATS.items():
             dst = stream_root / rel.with_suffix(suffix)
             if dst.exists():
                 info[key] = {
@@ -206,7 +196,7 @@ def main() -> int:
     log(f"{len(entries)} tracks, "
         f"{sum(e['duration'] for e in entries.values()) / 3600:.1f}h, "
         f"source {src_total / 1e9:.2f} GB")
-    for _, key, _ in FORMATS.values():
+    for _, key in FORMATS.values():
         total = sum(e[key]["bytes"] for e in entries.values() if key in e)
         if total:
             log(f"{key:4} {total / 1e9:.2f} GB ({100 - total / src_total * 100:.0f}% smaller)")

@@ -17,7 +17,7 @@ Static Astro site archiving recordings from the Jack Night DJ nights, served at
 | `src/components/Set.astro` | Renders one night. |
 | `src/pages/*.astro` | One page per series: a heading and a `<SetList>`. |
 | `src/scripts/player.ts` | Media Session, single-playback, resume-position. |
-| `src/scripts/album.ts` | Progress beside "Download album" while the zip is built. |
+| `src/scripts/album.ts` | Progress beside each album download while its zip is built. |
 | `scripts/audio-sync.py` | Runs **on the server**: probes the library, builds streamable encodes, prints the manifest. |
 | `scripts/album-server.py` | Runs **on the server**: zips tagged albums on request. |
 | `scripts/rekordbox-setlist.py` | Turns a Rekordbox export into a `setlist:` block. |
@@ -112,7 +112,6 @@ Each source file gets its encodes in `/var/www/audio/_stream/`:
 | --- | --- | --- |
 | Opus in Ogg (`.ogg`) | 96k | Chrome, Firefox, Android. Smallest. |
 | AAC in MP4 (`.m4a`) | 128k | Safari and iOS. Plays correctly everywhere. |
-| ALAC in MP4 (`.alac.m4a`) | lossless | The album download. FLAC/PCM sources only; Apple Music imports ALAC, not FLAC. |
 
 The markup lists the AAC with the original as a last resort, so playback never
 depends on a transcode having happened and never depends on JS. The Opus is
@@ -146,22 +145,31 @@ track surfaces at build time rather than as a broken player.
 
 ## Album downloads
 
-Every night has a "Download album" link to `/albums/<night-id>.zip`: a folder of
-tagged tracks ready to drag into Apple Music. Each source is one track. Album
+Every night has two album downloads, each a zipped folder of tagged tracks ready
+to drag into Apple Music. Each source is one track. Album
 artist is the series, the setlist goes in as lyrics, and the cover, if there is
-one, is embedded and also included as `cover.jpg`. Lossless sources use their
-ALAC encode; lossy ones (AAC, MP3) go in as they are.
+one, is embedded and also included as `cover.jpg`.
+
+| Link | URL | Lossless sources become |
+| --- | --- | --- |
+| Download Album (Lossless) | `/albums/<night-id>.zip` | ALAC (Apple Music imports ALAC, not FLAC) |
+| Download Album (Compressed) | `/albums/<night-id>.aac.zip` | AAC 256k, via `libfdk_aac` |
+
+Lossy sources (AAC, MP3) go into both as they are. The page's sizes are
+estimates, since nothing is encoded until it's asked for.
 
 The zips are built on request, not ahead of time, by `scripts/album-server.py`.
 It runs as the `jack-night-albums` systemd **user** unit on 127.0.0.1:8787;
 `bun run deploy` installs and restarts it. The build writes `dist/albums.json`
 and the server reads it from the web root. That file is its only source of
-paths: the request's album id is just a key into it.
+paths: the request's album id and variant are just keys.
 
-A build remuxes the tracks with ffmpeg (`-c copy`, so seconds, not minutes) and
-stores them uncompressed in a zip in `/var/tmp/jack-night-albums/`. The name is
-a hash of the album and its inputs, so editing the YAML or replacing audio gets
-a fresh zip. Cached zips are served by nginx via `X-Accel-Redirect`, so
+A build encodes the tracks with ffmpeg, four at a time, and stores them
+uncompressed in a zip in `/var/tmp/jack-night-albums/`. On the server ALAC runs
+at ~130x realtime and FDK AAC at ~50x, so a build takes about as long as its
+longest track: ~1 min lossless, ~2.5 min compressed for the 127-minute one. The
+name is a hash of the album, variant and inputs, so editing the YAML or
+replacing audio gets a fresh zip. Cached zips are served by nginx via `X-Accel-Redirect`, so
 downloads resume. A request that would wait more than 2 s gets a 202 instead,
 which keeps it well under Cloudflare's 100 s timeout. `src/scripts/album.ts`
 polls through those with HEAD, showing elapsed time beside the link, and starts
