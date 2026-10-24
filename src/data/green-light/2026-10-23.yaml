@@ -1,0 +1,13 @@
+date: 2026-10-23
+title: Green Light 004
+cover: 2f/2026-10-23/gl004.jpg
+tracks:
+  - name: ImTheSquid
+    sources:
+      - file: 2f/2026-10-23/gl004 ImTheSquid.flac
+  - name: glowcone
+    sources:
+      - file: 2f/2026-10-23/gl004 glowcone.flac
+  - name: glowcone b2b ImTheSquid
+    sources:
+      - file: 2f/2026-10-23/gl004 glowcone b2b ImTheSquid.flac
